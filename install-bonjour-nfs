@@ -5,6 +5,7 @@ test $(id -u) -eq 0 || exec sudo "$0"
 cd "$(dirname "$0")"
 install -d -m 755 /usr/local/bin
 install -m 755 bonjour-nfs.rb /usr/local/bin/bonjour-nfs
+install -m 755 uninstall-bonjour-nfs /usr/local/bin/uninstall-bonjour-nfs
 install -d -m 755 /Library/LaunchDaemons
 install -m 644 bonjour-nfs.plist /Library/LaunchDaemons/bonjour-nfs.plist
 launchctl unload -w /Library/LaunchDaemons/bonjour-nfs.plist || echo -n
