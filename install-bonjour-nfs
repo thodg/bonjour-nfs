@@ -1,7 +1,8 @@
 #!/bin/sh
-set -e
-cd "$(dirname "$0")"
 set -v
+set -e
+test $(id -u) -eq 0 || exec sudo "$0"
+cd "$(dirname "$0")"
 install -d -m 755 /usr/local/bin
 install -m 755 bonjour-nfs.rb /usr/local/bin/bonjour-nfs
 install -d -m 755 /Library/LaunchDaemons
