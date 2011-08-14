@@ -13,40 +13,40 @@ require 'pathname'
 require 'fileutils'
 require 'daemons'
 require 'logger'
+require 'getoptlong'
 
 class BonjourNFSMounter
-  include Daemonize
-
   MAIN_LOOP_DELAY = 10
   SKIP_MOUNT_RETRIEVAL_COUNT = 4 # Number of times get_active_mounts is NOT called ater each main loop delay.
   NFS_SERVICE = '_nfs._tcp'
-  LOG_FILE_LOCATION = '/Library/Logs'
 
-  def initialize()
+  def initialize
   end
 
-  def main
-    i=0
+  def main(log_target)
+    $log = Logger.new(log_target, 1, 512000) # Logfile can be at most 500kB.
+    $log.level = Logger::INFO # Log information and higher classes.
+    $log.info("Started")
+    begin
+      main_loop
+    ensure
+      $log.info("Stopped")
+    end
+  end
 
-    # Become a daemon
-    Process.setpriority(Process::PRIO_PROCESS, 0, 19)
-    log_dir = File.expand_path(LOG_FILE_LOCATION)
-    daemonize(log_dir+File::SEPARATOR+$0+'.log')
-
+  def main_loop
+    i = 0
     # NOTE: Discovery of new mounts will be detected SKIP_MOUNT_RETRIEVAL_COUNT
     # times more faster.
     loop do
-      sleep(MAIN_LOOP_DELAY)
-
-      if i<=0
+      i -= 1
+      if i <= 0
         @active_mounts = get_active_mounts
         i = SKIP_MOUNT_RETRIEVAL_COUNT
       end
-
       discover_nfs
-      i-=1
+      sleep(MAIN_LOOP_DELAY)
     end
-
   end
 
   def get_active_mounts
@@ -78,7 +78,7 @@ class BonjourNFSMounter
           # TODO: probe if directory could be created!!.
 
           if FileUtils.mkdir(mount.mount_point)
-            if system("mount -t nfs -o,port=#{mount.port} #{mount.server}:#{mount.path} #{mount.mount_point}")
+            if system("mount -t nfs -o resvport,udp,port=#{mount.port} '#{mount.server}:#{mount.path}' '#{mount.mount_point}'")
               @active_mounts.push(mount)
               $log.info("Succesfully mounted dicovered NFS service "+mount.to_s)
             else
@@ -127,7 +127,7 @@ class Mount
 
       # Add an ever increasing number to the mount_point when the path already exists.
       while File.exists?(new_mount_point)
-        new_mount_point = Pathname.new(mount_point.to_s + i.to_s)
+        new_mount_point = Pathname.new(mount_point.to_s+' ('+i.to_s+')')
         i+=1
 
         # When we had to count up to 50 and still did not find a valid path, something is really wrong.
@@ -154,14 +154,30 @@ end
 
 
 if __FILE__ == $0
-  $log = Logger.new(STDOUT, 1, 512000) # Logfile can be at most 500kB.
-  $log.level = Logger::INFO # Log information and higher classes.
-
   if Process.euid != 0
-    $log << "Need root privileges\n"
+    STDERR << "bonjour-nfs needs root privileges\n"
     Process.exit
   end
 
+  debug = false
+  foreground = false
+  opts = GetoptLong.new(['--debug', '-d', GetoptLong::NO_ARGUMENT],
+                        ['--foreground', '-f', GetoptLong::NO_ARGUMENT])
+  opts.each do |opt, arg|
+    case opt
+    when '--debug'
+      debug = true
+    when '--foreground'
+      foreground = true
+    end
+  end
+  foreground = true if debug
+
+  Process.setpriority(Process::PRIO_PROCESS, 0, 19)
+  Daemonize.daemonize unless foreground
+
+  log_target = if debug then STDOUT else '/Library/Logs/bonjour-nfs.log' end
+
   bonjournfsm = BonjourNFSMounter.new
-  bonjournfsm.main
+  bonjournfsm.main(log_target)
 end
