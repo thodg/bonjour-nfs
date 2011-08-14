@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+cd "$(dirname "$0")"
+set -v
+install -d -m 755 /usr/local/bin
+install -m 755 bonjour-nfs.rb /usr/local/bin/bonjour-nfs
+install -d -m 755 /Library/LaunchDaemons
+install -m 644 bonjour-nfs.plist /Library/LaunchDaemons/bonjour-nfs.plist
+launchctl unload -w /Library/LaunchDaemons/bonjour-nfs.plist || echo -n
+launchctl load -w /Library/LaunchDaemons/bonjour-nfs.plist

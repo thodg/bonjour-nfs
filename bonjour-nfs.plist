@@ -9,10 +9,10 @@
     <key>OnDemand</key>
     <false/>
     <key>Program</key>
-    <string>@PREFIX@/bin/bonjour-nfs</string>
+    <string>/usr/local/bin/bonjour-nfs</string>
     <key>ProgramArguments</key>
     <array>
-      <string>@PREFIX@/bin/bonjour-nfs</string>
+      <string>/usr/local/bin/bonjour-nfs</string>
       <string>-f</string>
     </array>
   </dict>
