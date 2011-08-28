@@ -2,5 +2,6 @@
 set -v
 test $(id -u) -eq 0 || exec sudo "$0"
 launchctl unload -w /Library/LaunchDaemons/bonjour-nfs.plist || echo -n
-rm /usr/local/bin/bonjour-nfs
 rm /Library/LaunchDaemons/bonjour-nfs.plist
+rm /usr/local/bin/bonjour-nfs
+rm /usr/local/bin/uninstall-bonjour-nfs
