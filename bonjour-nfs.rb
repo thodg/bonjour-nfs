@@ -29,6 +29,8 @@ class BonjourNFSMounter
     $log.info("Started")
     begin
       main_loop
+    rescue StandardError => e
+      $log.error(e.to_s)
     ensure
       $log.info("Stopped")
     end
@@ -51,12 +53,17 @@ class BonjourNFSMounter
 
   def get_active_mounts
     mounts = Array.new
-    nfs_mounts = `mount -t nfs`.split("\n")
+    nfs_mounts = `mount -t nfs 2>&1 || echo bonjour-nfs error`.split("\n")
     for nfs_mount in nfs_mounts do
+      if nfs_mount == 'bonjour-nfs error'
+        raise 'in get_active_mounts: '+nfs_mounts[0].chomp()
+      end
       server_path = nfs_mount.split()[0]
       unless server_path.nil?
         (server, path) = server_path.split(':')
-        mounts.push(Mount.new(server, Mount::UNKNOWN_PORT, path))
+        m = Mount.new(server, Mount::UNKNOWN_PORT, path)
+        p m
+        mounts.push(m)
       end
     end
 
@@ -130,8 +137,8 @@ class Mount
         new_mount_point = Pathname.new(mount_point.to_s+' ('+i.to_s+')')
         i+=1
 
-        # When we had to count up to 50 and still did not find a valid path, something is really wrong.
-        if i>50
+        # When we had to count up to 10 and still did not find a valid path, something is really wrong.
+        if i>10
           $log.error("Could not find a not existing mount point.")
           return
         end
