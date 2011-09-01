@@ -16,8 +16,7 @@ require 'logger'
 require 'getoptlong'
 
 class BonjourNFSMounter
-  MAIN_LOOP_DELAY = 10
-  SKIP_MOUNT_RETRIEVAL_COUNT = 4 # Number of times get_active_mounts is NOT called ater each main loop delay.
+  MAIN_LOOP_DELAY = 15
   NFS_SERVICE = '_nfs._tcp'
 
   def initialize
@@ -41,11 +40,7 @@ class BonjourNFSMounter
     # NOTE: Discovery of new mounts will be detected SKIP_MOUNT_RETRIEVAL_COUNT
     # times more faster.
     loop do
-      i -= 1
-      if i <= 0
-        @active_mounts = get_active_mounts
-        i = SKIP_MOUNT_RETRIEVAL_COUNT
-      end
+      @active_mounts = get_active_mounts
       discover_nfs
       sleep(MAIN_LOOP_DELAY)
     end
@@ -80,12 +75,12 @@ class BonjourNFSMounter
                     0,
                     browse_reply.interface) do |resolve_reply|
 
-        mount = Mount.new(resolve_reply.target, resolve_reply.port, resolve_reply.text_record['path'])
+        mount = Mount.new(resolve_reply.name, resolve_reply.port, resolve_reply.text_record['path'])
         if !@active_mounts.include?(mount)
           # TODO: probe if directory could be created!!.
 
           if FileUtils.mkdir(mount.mount_point)
-            if system("mount -t nfs -o resvport,udp,port=#{mount.port} '#{mount.server}:#{mount.path}' '#{mount.mount_point}'")
+            if system("mount -t nfs -o resvport,udp,rwsize=16384,locallock,port=#{mount.port} '#{mount.server}:#{mount.path}' '#{mount.mount_point}'")
               @active_mounts.push(mount)
               $log.info("Succesfully mounted dicovered NFS service "+mount.to_s)
             else
@@ -121,7 +116,8 @@ class Mount
 
   def ==(other_mount)
     # NOTE: Port not checked for equality.
-    @server == other_mount.server and @path == other_mount.path
+    @server.downcase == other_mount.server.downcase and
+      @path.downcase == other_mount.path.downcase
   end
 
   def mount_point
